@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
+from flask_cors import CORS
 import torch
-from flask_cors import CORS  # 👉 added import for CORS
 
 app = Flask(__name__)
-CORS(app)  # 👉 enabled CORS for all routes
+CORS(app)  # Enable CORS for all routes
 
-# Load BLIP image captioning model and processor
+# Load BLIP image captioning model and processor once at startup
 processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
 model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
@@ -17,13 +17,15 @@ def caption_image():
         return jsonify({'error': 'No image uploaded'}), 400
 
     file = request.files['image']
-    image = Image.open(file.stream)
+    image = Image.open(file.stream).convert('RGB')
 
+    # Process and generate caption
     inputs = processor(image, return_tensors="pt")
-    out = model.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
+    outputs = model.generate(**inputs)
+    caption = processor.decode(outputs[0], skip_special_tokens=True)
 
     return jsonify({'caption': caption})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # For Render deployment, use host="0.0.0.0" and port=5000
+    app.run(host="0.0.0.0", port=5000)
